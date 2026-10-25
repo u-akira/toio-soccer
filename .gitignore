@@ -1,0 +1,9 @@
+/*
+!/.gitignore
+!/code.py
+!/*.md
+!/se/
+!/tests/
+__pycache__/
+.git-jj-init-backup/
+.jj-jj-init-backup/
