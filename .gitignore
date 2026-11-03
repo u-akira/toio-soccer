@@ -2,6 +2,7 @@
 !/.gitignore
 !/code.py
 !/prepare_upload.ps1
+!/pyproject.toml
 !/*.md
 !/se/
 !/tests/
@@ -13,3 +14,4 @@ __pycache__/
 *.pyc
 .git-jj-init-backup/
 .jj-jj-init-backup/
+.venv/

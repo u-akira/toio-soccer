@@ -405,7 +405,7 @@ APIの参照先：[CircuitPython音声PWM出力](https://docs.circuitpython.org/
 
 ### 検証
 
-PCでの自動テスト：`python -m unittest discover -s tests -v`。CircuitPythonのハードウェアAPIを模擬し、裏向きでの停止優先・表向きでの解除、ロゴによる開始、各デモ動作、ボタン・傾きでの即時復帰、ロゴの長押し・再タッチ、再開条件、整数パケット、音源の解放、BLE送信エラー時の停止を確認する。
+PCでの自動テスト：`uv run --python 3.13 python -m unittest discover -s tests -v`。現行コードに対して、加速度センサーのI2C初期化（`board.I2C()`がない場合の`busio.I2C`への切替）と、傾きからモーター速度・BLEパケットへの変換を確認する。BLE接続や実センサーの値、実機のモーター動作はPCテストでは検証できない。
 
 実機では次の項目を確認する。
 

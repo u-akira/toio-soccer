@@ -16,3 +16,17 @@
 - `test/`には、micro:bitへ個別にコピーして単体実行できるサンプルを置く。
 - `tests/`にはPC上で実行する自動テストを置く。ここにあるファイルはmicro:bitへコピーしない。
 - 仕様書・セットアップ手順書は、この作業ルールとは別のファイルとして管理する。
+
+## PCでの自動テスト
+
+- テストにはPython 3.13と標準ライブラリの`unittest`を使う。外部パッケージは追加しない。
+- 初回はプロジェクトルートでuvがPython 3.13環境（`.venv/`）を用意して実行する。uvキャッシュはプロジェクト内の`.uv-cache/`を指定する。
+- PowerShellでの実行コマンド：
+
+  ```powershell
+  $env:UV_CACHE_DIR = Join-Path (Get-Location) '.uv-cache'
+  uv run --python 3.13 python -m unittest discover -s tests -v
+  ```
+
+- `tests/`のテストは現行コードの動作を検証する。コード変更時は、対象機能のテストを追加・更新し、全テストを実行する。
+- PCテストではBLE接続や内蔵センサー、実際のモーター動作は確認できない。これらは実機確認として別途記録する。
