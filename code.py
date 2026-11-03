@@ -1,150 +1,83 @@
 import time
 import _bleio
 import board
+import busio
 import digitalio
-
-ADDRESS_FILE = "toioaddres.json"
-SERVICE_UUID = _bleio.UUID("10b20100-5b3b-4571-9508-cf3efcd7bbae")
-LAMP_UUID = _bleio.UUID("10b20103-5b3b-4571-9508-cf3efcd7bbae")
-MOTOR_UUID = _bleio.UUID("10b20102-5b3b-4571-9508-cf3efcd7bbae")
-POSTURE_UUID = _bleio.UUID("10b20106-5b3b-4571-9508-cf3efcd7bbae")
-CONFIG_UUID = _bleio.UUID("10b201ff-5b3b-4571-9508-cf3efcd7bbae")
+from accel_i2c import create_i2c
+from toio_connection import connect_toio
+from tilt_drive import tilt_to_speeds, motor_packet
 
 row = digitalio.DigitalInOut(board.ROW3)
 column = digitalio.DigitalInOut(board.COL3)
 row.switch_to_output(value=False)
 column.switch_to_output(value=True)
 connection = None
+motor_packets = None
+i2c = create_i2c(board, busio)
+accel_address = None
+while not i2c.try_lock():
+    pass
+try:
+    devices = i2c.scan()
+    for address in (0x19, 0x18, 0x1D):
+        if address in devices:
+            accel_address = address
+            break
+    if accel_address is None:
+        raise RuntimeError("micro:bit accelerometer not found")
+    i2c.writeto(accel_address, bytes((0x20, 0x57)))
+finally:
+    i2c.unlock()
 
 
-def load_address():
+def read_accel(register):
+    if not i2c.try_lock():
+        return 0
     try:
-        with open(ADDRESS_FILE, "r") as file:
-            values = eval(file.read())
-        return _bleio.Address(bytes(values["address_bytes"]),
-                              values.get("address_type", 1))
-    except Exception:
-        return None
-
-
-def save_address(address):
-    data = "[" + ", ".join(str(b) for b in address.address_bytes) + "]"
-    with open(ADDRESS_FILE, "w") as file:
-        file.write('{"address_bytes": ' + data +
-                   ', "address_type": ' + str(address.type) + '}')
-
-
-def find_toio(adapter):
-    addresses = []
-    try:
-        for entry in adapter.start_scan(timeout=5.0):
-            if entry.address not in addresses:
-                addresses.append(entry.address)
+        result = bytearray(2)
+        i2c.writeto_then_readfrom(accel_address, bytes((register | 0x80,)), result)
+        value = (result[1] << 8) | result[0]
+        return value - 65536 if value > 32767 else value
     finally:
-        adapter.stop_scan()
-
-    for address in addresses:
-        candidate = None
-        try:
-            candidate = adapter.connect(address, timeout=5)
-            time.sleep(1.0)
-            characteristics = discover_characteristics(candidate)
-            posture_char = characteristics[2]
-            data = posture_char.value if posture_char is not None else None
-            posture_value = data[4] if data and len(data) >= 5 and data[0] == 0x01 else None
-            if posture_char is not None:
-                print("toio posture:", posture_value)
-                if posture_value is not None and posture_value != 0x01:
-                    return candidate, address, characteristics, posture_value
-        except Exception as error:
-            print("Candidate failed:", error)
-        if candidate is not None and candidate.connected:
-            candidate.disconnect()
-    return None, None, None, None
-
-
-def discover_characteristics(connection):
-    found = [None, None, None, None]
-    for service in connection.discover_remote_services():
-        if service.uuid == SERVICE_UUID:
-            for characteristic in service.characteristics:
-                if characteristic.uuid == LAMP_UUID:
-                    found[0] = characteristic
-                elif characteristic.uuid == MOTOR_UUID:
-                    found[1] = characteristic
-                elif characteristic.uuid == POSTURE_UUID:
-                    found[2] = characteristic
-                elif characteristic.uuid == CONFIG_UUID:
-                    found[3] = characteristic
-    return found
+        i2c.unlock()
 
 
 try:
-    adapter = _bleio.adapter
-    saved_address = load_address()
     target_confirmed = False
     while True:
-        characteristics = None
-        posture_value = None
-        if saved_address is not None:
-            try:
-                print("Connecting to saved toio...")
-                connection = adapter.connect(saved_address, timeout=8)
-            except Exception as error:
-                print("Saved address failed; scanning:", error)
-                saved_address = None
-
+        connection, motor = connect_toio(not target_confirmed)
         if connection is None:
-            print("Scanning for toio (5 seconds)...")
-            connection, found_address, characteristics, posture_value = find_toio(adapter)
-            if connection is not None:
-                saved_address = found_address
-                try:
-                    save_address(found_address)
-                    print("Saved toio address:", ADDRESS_FILE)
-                except Exception as error:
-                    print("Address not saved:", error)
-
-        if connection is None:
-            print("No eligible toio found. Retrying in 2 seconds...")
+            print("No eligible toio; retrying in 2 seconds.")
             time.sleep(2.0)
             continue
 
-        time.sleep(1.5)
-        if characteristics is None:
-            characteristics = discover_characteristics(connection)
-        lamp, motor, posture, config = characteristics
-        if lamp is None or motor is None or posture is None:
-            print("Connected, but required toio characteristics are missing.")
-            connection.disconnect()
-            connection = None
-            time.sleep(2.0)
-            continue
-
-        if not target_confirmed:
-            data = posture.value
-            posture_value = data[4] if data and len(data) >= 5 and data[0] == 0x01 else None
-            print("BLE connected; toio posture:", posture_value)
-            if posture_value == 0x01:
-                print("Waiting: flip the toio to the non-normal posture.")
-                connection.disconnect()
-                connection = None
-                time.sleep(2.0)
-                continue
-            target_confirmed = True
-
+        target_confirmed = True
         row.value = True
         column.value = False
-        print("TOIO CONNECTED. Posture changes will not end this test.")
-        print("Center LED is on. Press Ctrl+C to stop.")
+        motor_packets = _bleio.PacketBuffer(motor, buffer_size=2)
+        print("TOIO CONNECTED. Tilt micro:bit to move; Ctrl+C to stop.")
+        next_report = time.monotonic()
         while connection.connected:
-            time.sleep(0.2)
-        print("Connection lost. Retrying in 2 seconds...")
+            x = read_accel(0x28)
+            y = read_accel(0x2A)
+            left, right = tilt_to_speeds(x, y)
+            motor_packets.write(motor_packet(left, right))
+            now = time.monotonic()
+            if now >= next_report:
+                print("tilt raw:", x, y, "motor:", left, right)
+                next_report = now + 1.0
+            time.sleep(0.05)
+
+        motor_packets.deinit()
+        motor_packets = None
         connection = None
         row.value = False
         column.value = True
+        print("Connection lost; retrying in 2 seconds.")
         time.sleep(2.0)
 finally:
+    if motor_packets is not None:
+        motor_packets.deinit()
     if connection is not None and connection.connected:
         connection.disconnect()
     row.value = False

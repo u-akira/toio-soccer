@@ -1,9 +1,15 @@
-/*
+﻿/*
 !/.gitignore
 !/code.py
+!/prepare_upload.ps1
 !/*.md
 !/se/
 !/tests/
+!/test/
+!/test/**
+!/lib/
+!/lib/**
 __pycache__/
+*.pyc
 .git-jj-init-backup/
 .jj-jj-init-backup/
