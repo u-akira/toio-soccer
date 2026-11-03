@@ -39,5 +39,39 @@ class IdentificationBlinkTests(unittest.TestCase):
             self.assertIsNone(toio_connection._blink_identification(None))
 
 
+class ToioPostureMonitorTests(unittest.TestCase):
+    def test_updates_posture_from_motion_notifications_and_releases_buffer(self):
+        class PacketBuffer:
+            def __init__(self):
+                self.queue = [b"\x01\x00\x00\x00\x02", b"\x01\x00\x00\x00\x01"]
+                self.deinit_called = False
+                self.writes = []
+
+            def write(self, packet):
+                self.writes.append(packet)
+
+            def readinto(self, data):
+                if not self.queue:
+                    return 0
+                packet = self.queue.pop(0)
+                data[:len(packet)] = packet
+                return len(packet)
+
+            def deinit(self):
+                self.deinit_called = True
+
+        packet_buffer = PacketBuffer()
+        with patch.dict(toio_connection.__dict__, {
+            "_bleio": types.SimpleNamespace(
+                PacketBuffer=lambda *args, **kwargs: packet_buffer),
+        }):
+            monitor = toio_connection.ToioPostureMonitor("posture", 1)
+            self.assertEqual(packet_buffer.writes, [b"\x81"])
+            self.assertTrue(monitor.poll())
+            self.assertEqual(monitor.posture, 1)
+            monitor.deinit()
+        self.assertTrue(packet_buffer.deinit_called)
+
+
 if __name__ == "__main__":
     unittest.main()

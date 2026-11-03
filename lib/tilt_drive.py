@@ -25,6 +25,12 @@ def tilt_to_speeds(x, y):
     return left, right
 
 
+def posture_aware_speeds(posture, x, y):
+    if posture != 0x01:
+        return 0, 0
+    return tilt_to_speeds(x, y)
+
+
 def motor_packet(left, right):
     left = int(max(-MAX_SPEED, min(MAX_SPEED, left)))
     right = int(max(-MAX_SPEED, min(MAX_SPEED, right)))

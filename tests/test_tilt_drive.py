@@ -1,5 +1,5 @@
 ﻿import unittest
-from lib.tilt_drive import tilt_to_speeds, motor_packet
+from lib.tilt_drive import tilt_to_speeds, motor_packet, posture_aware_speeds
 
 
 class TiltDriveTests(unittest.TestCase):
@@ -30,6 +30,11 @@ class TiltDriveTests(unittest.TestCase):
 
     def test_speed_is_limited(self):
         self.assertEqual(tilt_to_speeds(0, 30000), (112, 112))
+
+    def test_tilt_is_accepted_only_when_toio_is_upright(self):
+        self.assertEqual(posture_aware_speeds(1, 0, 3000), (23, 23))
+        for posture in (None, 2, 3, 4, 5, 6):
+            self.assertEqual(posture_aware_speeds(posture, 0, 3000), (0, 0))
 
 
 if __name__ == "__main__":

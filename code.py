@@ -4,8 +4,8 @@ import board
 import busio
 import digitalio
 from accel_i2c import create_i2c
-from toio_connection import connect_toio
-from tilt_drive import tilt_to_speeds, motor_packet
+from toio_connection import connect_toio, ToioPostureMonitor
+from tilt_drive import posture_aware_speeds, motor_packet
 
 row = digitalio.DigitalInOut(board.ROW3)
 column = digitalio.DigitalInOut(board.COL3)
@@ -13,6 +13,7 @@ row.switch_to_output(value=False)
 column.switch_to_output(value=True)
 connection = None
 motor_packets = None
+posture_monitor = None
 i2c = create_i2c(board, busio)
 accel_address = None
 while not i2c.try_lock():
@@ -45,7 +46,8 @@ def read_accel(register):
 try:
     target_confirmed = False
     while True:
-        connection, motor = connect_toio(not target_confirmed)
+        connection, motor, posture_characteristic, initial_posture = connect_toio(
+            not target_confirmed)
         if connection is None:
             print("No eligible toio; retrying in 2 seconds.")
             time.sleep(2.0)
@@ -55,21 +57,28 @@ try:
         row.value = True
         column.value = False
         motor_packets = _bleio.PacketBuffer(motor, buffer_size=2)
+        posture_monitor = ToioPostureMonitor(
+            posture_characteristic, initial_posture)
         print("TOIO CONNECTED. Tilt micro:bit to move; Ctrl+C to stop.")
         next_report = time.monotonic()
         while connection.connected:
+            posture_monitor.poll()
             x = read_accel(0x28)
             y = read_accel(0x2A)
-            left, right = tilt_to_speeds(x, y)
+            left, right = posture_aware_speeds(
+                posture_monitor.posture, x, y)
             motor_packets.write(motor_packet(left, right))
             now = time.monotonic()
             if now >= next_report:
-                print("tilt raw:", x, y, "motor:", left, right)
+                print("toio posture:", posture_monitor.posture,
+                      "tilt raw:", x, y, "motor:", left, right)
                 next_report = now + 1.0
             time.sleep(0.05)
 
         motor_packets.deinit()
         motor_packets = None
+        posture_monitor.deinit()
+        posture_monitor = None
         connection = None
         row.value = False
         column.value = True
@@ -77,7 +86,10 @@ try:
         time.sleep(2.0)
 finally:
     if motor_packets is not None:
+        motor_packets.write(motor_packet(0, 0))
         motor_packets.deinit()
+    if posture_monitor is not None:
+        posture_monitor.deinit()
     if connection is not None and connection.connected:
         connection.disconnect()
     row.value = False

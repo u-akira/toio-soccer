@@ -63,6 +63,32 @@ def _blink_identification(lamp):
         packets.deinit()
 
 
+class ToioPostureMonitor:
+    def __init__(self, characteristic, initial_posture=None):
+        self._packets = _bleio.PacketBuffer(
+            characteristic, buffer_size=8, max_packet_size=20)
+        self._data = bytearray(20)
+        self.posture = initial_posture
+        self._packets.write(b"\x81")
+
+    def poll(self):
+        changed = False
+        for _ in range(8):
+            length = self._packets.readinto(self._data)
+            if not length:
+                break
+            if length >= 5 and self._data[0] == 0x01:
+                value = self._data[4]
+                if value != self.posture:
+                    self.posture = value
+                    changed = True
+                    print("toio posture:", value)
+        return changed
+
+    def deinit(self):
+        self._packets.deinit()
+
+
 def connect_toio(require_non_normal=True):
     adapter = _bleio.adapter
     address = _load_address()
@@ -75,11 +101,11 @@ def connect_toio(require_non_normal=True):
             if motor is not None and (not require_non_normal or value not in (None, 0x01)):
                 _blink_identification(lamp)
                 print("Connected to saved toio; posture:", value)
-                return connection, motor
+                return connection, motor, posture, value
             connection.disconnect()
             if require_non_normal and value == 0x01:
                 print("Saved toio is upright; waiting for non-normal posture.")
-                return None, None
+                return None, None, None, None
         except Exception as error:
             print("Saved address failed:", error)
 
@@ -106,9 +132,9 @@ def connect_toio(require_non_normal=True):
                 except Exception as error:
                     print("Address not saved:", error)
                 print("Connected to toio; posture:", value)
-                return connection, motor
+                return connection, motor, posture, value
         except Exception as error:
             print("Candidate failed:", error)
         if connection is not None and connection.connected:
             connection.disconnect()
-    return None, None
+    return None, None, None, None
