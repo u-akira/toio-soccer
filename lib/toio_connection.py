@@ -47,6 +47,22 @@ def _posture_value(characteristic):
     return None
 
 
+def _blink_identification(lamp):
+    if lamp is None:
+        return
+    packets = _bleio.PacketBuffer(lamp, buffer_size=2)
+    yellow = bytes((0x03, 0x01, 0x01, 0x01, 0xFF, 0xFF, 0x00))
+    off = bytes((0x03, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00))
+    try:
+        for _ in range(6):
+            packets.write(yellow)
+            time.sleep(0.25)
+            packets.write(off)
+            time.sleep(0.25)
+    finally:
+        packets.deinit()
+
+
 def connect_toio(require_non_normal=True):
     adapter = _bleio.adapter
     address = _load_address()
@@ -57,6 +73,7 @@ def connect_toio(require_non_normal=True):
             lamp, motor, posture = _characteristics(connection)
             value = _posture_value(posture) if posture is not None else None
             if motor is not None and (not require_non_normal or value not in (None, 0x01)):
+                _blink_identification(lamp)
                 print("Connected to saved toio; posture:", value)
                 return connection, motor
             connection.disconnect()
@@ -83,6 +100,7 @@ def connect_toio(require_non_normal=True):
             lamp, motor, posture = _characteristics(connection)
             value = _posture_value(posture) if posture is not None else None
             if motor is not None and (not require_non_normal or value not in (None, 0x01)):
+                _blink_identification(lamp)
                 try:
                     _save_address(address)
                 except Exception as error:
