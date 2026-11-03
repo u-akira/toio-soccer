@@ -28,6 +28,8 @@ Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_drive.py') `
     (Join-Path $uploadLib 'tilt_drive.py')
 Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\accel_i2c.py') `
     (Join-Path $uploadLib 'accel_i2c.py')
+Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_display.py') `
+    (Join-Path $uploadLib 'tilt_display.py')
 
 Write-Output 'Upload files prepared from current sources:'
 Get-ChildItem -LiteralPath $uploadRoot -File -Recurse |

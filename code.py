@@ -6,11 +6,9 @@ import digitalio
 from accel_i2c import create_i2c
 from toio_connection import connect_toio, ToioPostureMonitor
 from tilt_drive import posture_aware_speeds, motor_packet
+from tilt_display import TiltDisplay
 
-row = digitalio.DigitalInOut(board.ROW3)
-column = digitalio.DigitalInOut(board.COL3)
-row.switch_to_output(value=False)
-column.switch_to_output(value=True)
+display = TiltDisplay(board, digitalio)
 connection = None
 motor_packets = None
 posture_monitor = None
@@ -54,8 +52,6 @@ try:
             continue
 
         target_confirmed = True
-        row.value = True
-        column.value = False
         motor_packets = _bleio.PacketBuffer(motor, buffer_size=2)
         posture_monitor = ToioPostureMonitor(
             posture_characteristic, initial_posture)
@@ -65,6 +61,7 @@ try:
             posture_monitor.poll()
             x = read_accel(0x28)
             y = read_accel(0x2A)
+            display.poll(x, y)
             left, right = posture_aware_speeds(
                 posture_monitor.posture, x, y)
             motor_packets.write(motor_packet(left, right))
@@ -80,8 +77,6 @@ try:
         posture_monitor.deinit()
         posture_monitor = None
         connection = None
-        row.value = False
-        column.value = True
         print("Connection lost; retrying in 2 seconds.")
         time.sleep(2.0)
 finally:
@@ -92,7 +87,4 @@ finally:
         posture_monitor.deinit()
     if connection is not None and connection.connected:
         connection.disconnect()
-    row.value = False
-    column.value = True
-    row.deinit()
-    column.deinit()
+    display.deinit()
