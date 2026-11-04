@@ -7,8 +7,16 @@ from accel_i2c import create_i2c
 from toio_connection import connect_toio, ToioPostureMonitor
 from tilt_drive import posture_aware_speeds, motor_packet
 from tilt_display import TiltDisplay
+from button_control import ButtonControl
+from sound_effects import SoundEffects
 
 display = TiltDisplay(board, digitalio)
+btn_a = digitalio.DigitalInOut(board.BTN_A)
+btn_a.switch_to_input(pull=digitalio.Pull.UP)
+btn_b = digitalio.DigitalInOut(board.BTN_B)
+btn_b.switch_to_input(pull=digitalio.Pull.UP)
+button_control = ButtonControl()
+sounds = SoundEffects(board)
 connection = None
 motor_packets = None
 posture_monitor = None
@@ -61,9 +69,18 @@ try:
             posture_monitor.poll()
             x = read_accel(0x28)
             y = read_accel(0x2A)
-            display.poll(x, y)
-            left, right = posture_aware_speeds(
+            tilt_left, tilt_right = posture_aware_speeds(
                 posture_monitor.posture, x, y)
+            left, right, turn_started, show_tilt = button_control.update(
+                time.monotonic(),
+                posture_monitor.posture == 0x01 and not btn_a.value,
+                posture_monitor.posture == 0x01 and not btn_b.value,
+                tilt_left, tilt_right)
+            if show_tilt:
+                display.poll(x, y)
+            if turn_started:
+                sounds.play_turn(time.monotonic())
+            sounds.poll(time.monotonic())
             motor_packets.write(motor_packet(left, right))
             now = time.monotonic()
             if now >= next_report:
@@ -85,6 +102,7 @@ finally:
         motor_packets.deinit()
     if posture_monitor is not None:
         posture_monitor.deinit()
+    sounds.deinit()
     if connection is not None and connection.connected:
         connection.disconnect()
     display.deinit()

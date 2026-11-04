@@ -30,6 +30,10 @@ Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\accel_i2c.py') `
     (Join-Path $uploadLib 'accel_i2c.py')
 Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_display.py') `
     (Join-Path $uploadLib 'tilt_display.py')
+Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\button_control.py') `
+    (Join-Path $uploadLib 'button_control.py')
+Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\sound_effects.py') `
+    (Join-Path $uploadLib 'sound_effects.py')
 
 Write-Output 'Upload files prepared from current sources:'
 Get-ChildItem -LiteralPath $uploadRoot -File -Recurse |
