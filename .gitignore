@@ -2,8 +2,11 @@
 !/.gitignore
 !/code.py
 !/prepare_upload.ps1
+!/test.ps1
 !/pyproject.toml
 !/*.md
+!/tools/
+!/tools/**
 !/tests/
 !/test/
 !/test/**

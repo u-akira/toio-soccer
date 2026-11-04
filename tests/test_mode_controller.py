@@ -1,6 +1,11 @@
 import unittest
 
-from lib.mode_controller import DEMO, MANUAL, ModeController
+from test_support import load_target
+
+mode_module = load_target("mode_controller")
+DEMO = mode_module.DEMO
+MANUAL = mode_module.MANUAL
+ModeController = mode_module.ModeController
 
 
 class ModeControllerTests(unittest.TestCase):

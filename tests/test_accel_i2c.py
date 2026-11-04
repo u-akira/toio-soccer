@@ -1,6 +1,8 @@
 import unittest
 
-from lib.accel_i2c import create_i2c
+from test_support import load_target
+
+create_i2c = load_target("accel_i2c").create_i2c
 
 
 class FakeBusio:

@@ -1,6 +1,8 @@
 import unittest
 
-from lib.button_control import ButtonControl
+from test_support import load_target
+
+ButtonControl = load_target("button_control").ButtonControl
 
 
 class ButtonControlTests(unittest.TestCase):

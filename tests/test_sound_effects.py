@@ -3,7 +3,9 @@ import types
 import unittest
 from unittest.mock import patch
 
-from lib.sound_effects import SoundEffects
+from test_support import load_target
+
+SoundEffects = load_target("sound_effects").SoundEffects
 
 
 class FakePWM:

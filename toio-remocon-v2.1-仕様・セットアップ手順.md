@@ -50,6 +50,7 @@ A/B旋回速度は16、A+B前進速度は112。傾き操作は`lib/tilt_drive.py
 - モードの切替と手動／デモの指令選択は`lib/mode_controller.py`に集約する。デモの動作列は同ファイルの`DEMO_SEQUENCE`で差し替える。
 - `tests/`: PC上の`unittest`。実センサー・BLE・モーターは検証せず、各モジュールの計算や制御判断を検証する。
 - `test/`: micro:bitへ単体転送する機能サンプル。
+- `upload/debug/`と`upload/release/`: `prepare_upload.ps1`が生成する転送成果物。debugは分割構成、releaseは単一の`code.py`。
 - 旧版ソースは参照用として作業フォルダーに置く。Jujutsuの管理対象外。
 
 ## 3. PCでのテスト
@@ -57,9 +58,10 @@ A/B旋回速度は16、A+B前進速度は112。傾き操作は`lib/tilt_drive.py
 Python 3.13とuvを使う。外部パッケージは不要。
 
 ```powershell
-$env:UV_CACHE_DIR = Join-Path (Get-Location) '.uv-cache'
-uv run --python 3.13 python -m unittest discover -s tests -v
+.\test.ps1
 ```
+
+このスクリプトは転送ファイルを生成し、同じテスト一式をdebug版とrelease版に対してそれぞれ実行する。
 
 BLE接続や実機のピン・音・モーター動作は、micro:bitとtoioで別途確認する。
 
@@ -74,9 +76,22 @@ BLE接続や実機のピン・音・モーター動作は、micro:bitとtoioで�
    .\prepare_upload.ps1
    ```
 
-3. Thonnyのファイル画面で、PC側の`upload/code.py`をデバイスのルートへ転送する。
-4. PC側の`upload/lib/`フォルダーをデバイスのルートへ転送する。デバイス上に`/lib/`とその中のPythonファイルができることを確認する。
-5. WAV音源の転送は不要。
+`upload/debug/`と`upload/release/`が生成される。次のどちらか一方を転送する。
+
+### debug版（分割ファイル）
+
+- `upload/debug/code.py`をmicro:bitのルートへ転送する。
+- `upload/debug/lib/`フォルダーをmicro:bitのルートへ転送し、デバイス上に`/lib/`ができることを確認する。
+- 機能ごとに分かれているため、実機での調査や個別差し替えに使う。
+
+### release版（単一ファイル）
+
+- `upload/release/code.py`だけをmicro:bitのルートへ転送する。
+- releaseはルートの`code.py`と`lib/*.py`から自動生成する。生成ファイルを直接編集しない。
+- `test.ps1`は同じテストをdebug版とrelease版の両方に実行し、release全体の構文も確認する。
+- PCテストでは分割版と統合版のプログラムロジックを確認できる。BLE、内蔵センサー、モーター、CircuitPython固有APIの実機動作は保証されないため、release版もmicro:bitで確認する。
+
+WAV音源の転送は不要。
 
 ### 起動
 
@@ -88,7 +103,7 @@ BLE接続や実機のピン・音・モーター動作は、micro:bitとtoioで�
 
 - `Ctrl+C`またはリセットボタンで実行を止め、シェルに`>>>`が戻ってから転送する。
 - 通常起動で停止できない場合は、micro:bitをセーフモードで起動し、その間に転送する。
-- `code.py`と`lib/`の全ファイルを同じ生成時点の`upload/`から転送する。混在すると、関数の返り値数などが合わず実行時エラーになる。
+- debug版は`upload/debug/`内を一式で転送し、release版は`upload/release/code.py`だけを転送する。両方式のファイルを混ぜない。
 - `prepare_upload.ps1`は転送用`.py`ファイルのUTF-8 BOMを除去する。転送ファイルをエディターで再保存してBOMを付けない。
 
 ## 5. 調整

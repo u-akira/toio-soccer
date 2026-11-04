@@ -1,9 +1,22 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $uploadRoot = Join-Path $projectRoot 'upload'
-$uploadLib = Join-Path $uploadRoot 'lib'
+$debugRoot = Join-Path $uploadRoot 'debug'
+$debugLib = Join-Path $debugRoot 'lib'
+$releaseRoot = Join-Path $uploadRoot 'release'
 
-New-Item -ItemType Directory -Path $uploadLib -Force | Out-Null
+# Remove artifacts from the previous upload layout.
+foreach ($stalePath in @(
+    (Join-Path $uploadRoot 'code.py'),
+    (Join-Path $uploadRoot 'lib')
+)) {
+    if (Test-Path -LiteralPath $stalePath) {
+        Remove-Item -LiteralPath $stalePath -Recurse -Force
+    }
+}
+
+New-Item -ItemType Directory -Path $debugLib -Force | Out-Null
+New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
 
 function Copy-PythonWithoutBom($source, $destination) {
     $bytes = [System.IO.File]::ReadAllBytes($source)
@@ -21,23 +34,31 @@ function Copy-PythonWithoutBom($source, $destination) {
 }
 
 Copy-PythonWithoutBom (Join-Path $projectRoot 'code.py') `
-    (Join-Path $uploadRoot 'code.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\toio_connection.py') `
-    (Join-Path $uploadLib 'toio_connection.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_drive.py') `
-    (Join-Path $uploadLib 'tilt_drive.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_settings.py') `
-    (Join-Path $uploadLib 'tilt_settings.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\accel_i2c.py') `
-    (Join-Path $uploadLib 'accel_i2c.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_display.py') `
-    (Join-Path $uploadLib 'tilt_display.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\button_control.py') `
-    (Join-Path $uploadLib 'button_control.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\mode_controller.py') `
-    (Join-Path $uploadLib 'mode_controller.py')
-Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\sound_effects.py') `
-    (Join-Path $uploadLib 'sound_effects.py')
+    (Join-Path $debugRoot 'code.py')
+Get-ChildItem -LiteralPath (Join-Path $projectRoot 'lib') -Filter '*.py' -File |
+    ForEach-Object {
+        Copy-PythonWithoutBom $_.FullName (Join-Path $debugLib $_.Name)
+    }
+
+Push-Location $projectRoot
+try {
+    $env:UV_CACHE_DIR = Join-Path $projectRoot '.uv-cache'
+    uv run --python 3.13 python tools/build_release.py `
+        --output (Join-Path $releaseRoot 'code.py')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Release bundle generation failed.'
+    }
+}
+finally {
+    Pop-Location
+}
+
+$releaseCode = Join-Path $releaseRoot 'code.py'
+$releaseBytes = [System.IO.File]::ReadAllBytes($releaseCode)
+if ($releaseBytes.Length -ge 3 -and $releaseBytes[0] -eq 0xEF -and
+    $releaseBytes[1] -eq 0xBB -and $releaseBytes[2] -eq 0xBF) {
+    throw "UTF-8 BOM remains in upload file: $releaseCode"
+}
 
 Write-Output 'Upload files prepared from current sources:'
 Get-ChildItem -LiteralPath $uploadRoot -File -Recurse |

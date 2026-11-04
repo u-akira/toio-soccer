@@ -1,6 +1,10 @@
 import unittest
 
-from lib.tilt_display import TiltDisplay, tilt_to_led
+from test_support import load_target
+
+tilt_display = load_target("tilt_display")
+TiltDisplay = tilt_display.TiltDisplay
+tilt_to_led = tilt_display.tilt_to_led
 
 
 class FakePin:

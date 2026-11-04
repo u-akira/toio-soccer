@@ -1,5 +1,10 @@
 ﻿import unittest
-from lib.tilt_drive import tilt_to_speeds, motor_packet, posture_aware_speeds
+from test_support import load_target
+
+tilt_drive = load_target("tilt_drive")
+tilt_to_speeds = tilt_drive.tilt_to_speeds
+motor_packet = tilt_drive.motor_packet
+posture_aware_speeds = tilt_drive.posture_aware_speeds
 
 
 class TiltDriveTests(unittest.TestCase):

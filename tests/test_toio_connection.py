@@ -1,13 +1,11 @@
-import importlib
 import sys
 import types
 import unittest
 from unittest.mock import Mock, patch
+from test_support import load_target
 
 
-fake_bleio = types.SimpleNamespace(UUID=lambda value: value)
-with patch.dict(sys.modules, {"_bleio": fake_bleio}):
-    toio_connection = importlib.import_module("lib.toio_connection")
+toio_connection = load_target("toio_connection")
 
 
 class IdentificationBlinkTests(unittest.TestCase):
