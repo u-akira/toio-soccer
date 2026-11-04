@@ -11,6 +11,10 @@ with patch.dict(sys.modules, {"_bleio": fake_bleio}):
 
 
 class IdentificationBlinkTests(unittest.TestCase):
+    def test_lamp_packet_encodes_rgb_color(self):
+        self.assertEqual(toio_connection.lamp_packet(255, 0, 0),
+                         bytes((3, 1, 1, 1, 255, 0, 0)))
+
     def test_blinks_yellow_for_three_seconds_and_releases_packet_buffer(self):
         packets = types.SimpleNamespace(write=Mock(), deinit=Mock())
         clock = [0.0]
@@ -67,8 +71,48 @@ class ToioPostureMonitorTests(unittest.TestCase):
         }):
             monitor = toio_connection.ToioPostureMonitor("posture", 1)
             self.assertEqual(packet_buffer.writes, [b"\x81"])
-            self.assertTrue(monitor.poll())
+            self.assertFalse(monitor.poll())
             self.assertEqual(monitor.posture, 1)
+            monitor.deinit()
+        self.assertTrue(packet_buffer.deinit_called)
+
+    def test_collision_is_reported_only_on_flag_rising_edge(self):
+        class PacketBuffer:
+            def __init__(self):
+                self.queue = []
+                self.deinit_called = False
+
+            def write(self, packet):
+                pass
+
+            def readinto(self, data):
+                if not self.queue:
+                    return 0
+                packet = self.queue.pop(0)
+                data[:len(packet)] = packet
+                return len(packet)
+
+            def deinit(self):
+                self.deinit_called = True
+
+        packet_buffer = PacketBuffer()
+        with patch.dict(toio_connection.__dict__, {
+            "_bleio": types.SimpleNamespace(
+                PacketBuffer=lambda *args, **kwargs: packet_buffer),
+        }):
+            monitor = toio_connection.ToioPostureMonitor("posture", 1)
+            packet_buffer.queue.append(b"\x01\x00\x00\x00\x01")
+            self.assertFalse(monitor.poll())
+            packet_buffer.queue.extend([
+                b"\x01\x00\x01\x00\x01",
+                b"\x01\x00\x01\x00\x01",
+            ])
+            self.assertTrue(monitor.poll())
+            packet_buffer.queue.extend([
+                b"\x01\x00\x00\x00\x01",
+                b"\x01\x00\x01\x00\x01",
+            ])
+            self.assertTrue(monitor.poll())
             monitor.deinit()
         self.assertTrue(packet_buffer.deinit_called)
 

@@ -47,12 +47,16 @@ def _posture_value(characteristic):
     return None
 
 
+def lamp_packet(red, green, blue):
+    return bytes((0x03, 0x01, 0x01, 0x01, red, green, blue))
+
+
 def _blink_identification(lamp):
     if lamp is None:
         return
     packets = _bleio.PacketBuffer(lamp, buffer_size=2)
-    yellow = bytes((0x03, 0x01, 0x01, 0x01, 0xFF, 0xFF, 0x00))
-    off = bytes((0x03, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00))
+    yellow = lamp_packet(0xFF, 0xFF, 0x00)
+    off = lamp_packet(0x00, 0x00, 0x00)
     try:
         for _ in range(6):
             packets.write(yellow)
@@ -69,21 +73,27 @@ class ToioPostureMonitor:
             characteristic, buffer_size=8, max_packet_size=20)
         self._data = bytearray(20)
         self.posture = initial_posture
+        self._collision_seen = None
         self._packets.write(b"\x81")
 
     def poll(self):
-        changed = False
+        collision_detected = False
         for _ in range(8):
             length = self._packets.readinto(self._data)
             if not length:
                 break
             if length >= 5 and self._data[0] == 0x01:
+                collision = self._data[2] == 0x01
+                if (self._collision_seen is not None and collision
+                        and not self._collision_seen):
+                    collision_detected = True
+                    print("Collision notification:", list(self._data[:length]))
+                self._collision_seen = collision
                 value = self._data[4]
                 if value != self.posture:
                     self.posture = value
-                    changed = True
                     print("toio posture:", value)
-        return changed
+        return collision_detected
 
     def deinit(self):
         self._packets.deinit()
@@ -101,11 +111,11 @@ def connect_toio(require_non_normal=True):
             if motor is not None and (not require_non_normal or value not in (None, 0x01)):
                 _blink_identification(lamp)
                 print("Connected to saved toio; posture:", value)
-                return connection, motor, posture, value
+                return connection, motor, posture, value, lamp
             connection.disconnect()
             if require_non_normal and value == 0x01:
                 print("Saved toio is upright; waiting for non-normal posture.")
-                return None, None, None, None
+                return None, None, None, None, None
         except Exception as error:
             print("Saved address failed:", error)
 
@@ -132,9 +142,9 @@ def connect_toio(require_non_normal=True):
                 except Exception as error:
                     print("Address not saved:", error)
                 print("Connected to toio; posture:", value)
-                return connection, motor, posture, value
+                return connection, motor, posture, value, lamp
         except Exception as error:
             print("Candidate failed:", error)
         if connection is not None and connection.connected:
             connection.disconnect()
-    return None, None, None, None
+    return None, None, None, None, None

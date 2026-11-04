@@ -13,6 +13,8 @@ DEMO_SEQUENCE = (
     (1.5, 12, -12),
     (1.5, -12, 12),
 )
+BACKOFF_SPEED = 16
+BACKOFF_DURATION = 0.5
 
 
 class ModeController:
@@ -20,12 +22,34 @@ class ModeController:
         self.mode = MANUAL
         self._logo_down = False
         self._demo_started_at = 0.0
+        self._backoff_until = None
+        self._backoff_started_at = None
         self._buttons = ButtonControl()
 
-    def update(self, now, logo_pressed, posture, a, b, tilt_left, tilt_right):
+    def backoff_lamp_on(self, now):
+        if self._backoff_until is None or now >= self._backoff_until:
+            return False
+        return int((now - self._backoff_started_at) / 0.25) % 2 == 0
+
+    def update(self, now, logo_pressed, posture, a, b, tilt_left, tilt_right,
+               collision=False):
         logo_edge = logo_pressed and not self._logo_down
         self._logo_down = logo_pressed
         event = None
+
+        if self._backoff_until is not None and now >= self._backoff_until:
+            if self.mode == DEMO:
+                self._demo_started_at += now - self._backoff_started_at
+            self._backoff_until = None
+            self._backoff_started_at = None
+        if collision and self._backoff_until is None:
+            self._backoff_until = now + BACKOFF_DURATION
+            self._backoff_started_at = now
+            event = "collision"
+        if self._backoff_until is not None:
+            if posture != 0x01:
+                return 0, 0, self.mode, event
+            return -BACKOFF_SPEED, -BACKOFF_SPEED, self.mode, event
 
         if logo_edge:
             if self.mode == MANUAL:

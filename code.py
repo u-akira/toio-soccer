@@ -5,7 +5,7 @@ import busio
 import digitalio
 import touchio
 from accel_i2c import create_i2c
-from toio_connection import connect_toio, ToioPostureMonitor
+from toio_connection import connect_toio, ToioPostureMonitor, lamp_packet
 from tilt_drive import posture_aware_speeds, motor_packet
 from tilt_display import TiltDisplay
 from sound_effects import SoundEffects
@@ -25,7 +25,9 @@ mode_controller = ModeController()
 sounds = SoundEffects(board)
 connection = None
 motor_packets = None
+lamp_packets = None
 posture_monitor = None
+last_backoff_lamp = None
 i2c = create_i2c(board, busio)
 accel_address = None
 while not i2c.try_lock():
@@ -58,8 +60,8 @@ def read_accel(register):
 try:
     target_confirmed = False
     while True:
-        connection, motor, posture_characteristic, initial_posture = connect_toio(
-            not target_confirmed)
+        (connection, motor, posture_characteristic, initial_posture,
+         lamp_characteristic) = connect_toio(not target_confirmed)
         if connection is None:
             print("No eligible toio; retrying in 2 seconds.")
             time.sleep(2.0)
@@ -67,6 +69,9 @@ try:
 
         target_confirmed = True
         motor_packets = _bleio.PacketBuffer(motor, buffer_size=2)
+        if lamp_characteristic is not None:
+            lamp_packets = _bleio.PacketBuffer(lamp_characteristic, buffer_size=2)
+        last_backoff_lamp = None
         posture_monitor = ToioPostureMonitor(
             posture_characteristic, initial_posture)
         print("TOIO CONNECTED. Tilt micro:bit to move; Ctrl+C to stop.")
@@ -79,7 +84,7 @@ try:
                 display.refresh()
                 next_display = now + 0.001
             if now >= next_control:
-                posture_monitor.poll()
+                collision = posture_monitor.poll()
                 x = read_accel(0x28)
                 y = read_accel(0x2A)
                 logo = btn_logo.value if btn_logo is not None else False
@@ -87,7 +92,15 @@ try:
                     posture_monitor.posture, x, y)
                 left, right, display_mode, event = mode_controller.update(
                     now, logo, posture_monitor.posture,
-                    not btn_a.value, not btn_b.value, tilt_left, tilt_right)
+                    not btn_a.value, not btn_b.value, tilt_left, tilt_right,
+                    collision)
+                if event == "collision":
+                    print("COLLISION: reverse for 0.5 seconds")
+                backoff_lamp = mode_controller.backoff_lamp_on(now)
+                if lamp_packets is not None and backoff_lamp != last_backoff_lamp:
+                    color = (0xFF, 0x00, 0x00) if backoff_lamp else (0x00, 0x00, 0x00)
+                    lamp_packets.write(lamp_packet(*color))
+                    last_backoff_lamp = backoff_lamp
                 if event in ("demo_start", "demo_stop"):
                     print("DEMO", event)
                     sounds.play_turn(now)
@@ -108,6 +121,11 @@ try:
 
         motor_packets.deinit()
         motor_packets = None
+        if lamp_packets is not None:
+            if connection.connected:
+                lamp_packets.write(lamp_packet(0, 0, 0))
+            lamp_packets.deinit()
+            lamp_packets = None
         posture_monitor.deinit()
         posture_monitor = None
         connection = None
@@ -117,6 +135,10 @@ finally:
     if motor_packets is not None:
         motor_packets.write(motor_packet(0, 0))
         motor_packets.deinit()
+    if lamp_packets is not None:
+        if connection is not None and connection.connected:
+            lamp_packets.write(lamp_packet(0, 0, 0))
+        lamp_packets.deinit()
     if posture_monitor is not None:
         posture_monitor.deinit()
     sounds.deinit()
