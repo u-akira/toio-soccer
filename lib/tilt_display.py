@@ -36,16 +36,34 @@ class TiltDisplay:
         for pin in self.columns:
             pin.switch_to_output(value=True)
         self.point = (2, 2)
+        self._pixels = ((0, 0, 1, 0, 0),) * 5
+        self._scan_row = 0
 
-    def poll(self, x, y):
+    def show_tilt(self, x, y):
         self.point = tilt_to_led(x, y)
+        frame = [[0, 0, 0, 0, 0] for _ in range(5)]
+        frame[self.point[0]][self.point[1]] = 1
+        self._pixels = tuple(tuple(row) for row in frame)
+
+    def show_demo(self):
+        self._pixels = (
+            (1, 1, 1, 1, 0),
+            (1, 0, 0, 0, 1),
+            (1, 0, 0, 0, 1),
+            (1, 0, 0, 0, 1),
+            (1, 1, 1, 1, 0),
+        )
+
+    def refresh(self):
         for pin in self.rows:
             pin.value = False
         for pin in self.columns:
             pin.value = True
-        row, column = self.point
-        self.columns[column].value = False
-        self.rows[row].value = True
+        for column, lit in enumerate(self._pixels[self._scan_row]):
+            if lit:
+                self.columns[column].value = False
+        self.rows[self._scan_row].value = True
+        self._scan_row = (self._scan_row + 1) % 5
 
     def deinit(self):
         for pin in self.rows:

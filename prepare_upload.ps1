@@ -34,6 +34,8 @@ Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_display.py') `
     (Join-Path $uploadLib 'tilt_display.py')
 Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\button_control.py') `
     (Join-Path $uploadLib 'button_control.py')
+Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\mode_controller.py') `
+    (Join-Path $uploadLib 'mode_controller.py')
 Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\sound_effects.py') `
     (Join-Path $uploadLib 'sound_effects.py')
 

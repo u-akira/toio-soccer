@@ -33,6 +33,11 @@ class ButtonControlTests(unittest.TestCase):
         self.assertEqual(self.update(0.05, a=True), (-16, 16, False, False))
         self.assertEqual(self.update(0.1), (5, 6, False, True))
 
+    def test_reset_clears_an_interrupted_a_plus_b_pulse(self):
+        self.update(0, a=True, b=True)
+        self.control.reset()
+        self.assertEqual(self.update(0.05), (5, 6, False, True))
+
 
 if __name__ == "__main__":
     unittest.main()

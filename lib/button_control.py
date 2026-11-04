@@ -12,6 +12,12 @@ class ButtonControl:
         self._a_down = False
         self._b_down = False
 
+    def reset(self):
+        self._combo_down = False
+        self._forward_until = None
+        self._a_down = False
+        self._b_down = False
+
     def update(self, now, a, b, tilt_left, tilt_right):
         combo = a and b
         if combo and not self._combo_down:
