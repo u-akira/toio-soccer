@@ -26,6 +26,8 @@ Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\toio_connection.py') `
     (Join-Path $uploadLib 'toio_connection.py')
 Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_drive.py') `
     (Join-Path $uploadLib 'tilt_drive.py')
+Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_settings.py') `
+    (Join-Path $uploadLib 'tilt_settings.py')
 Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\accel_i2c.py') `
     (Join-Path $uploadLib 'accel_i2c.py')
 Copy-PythonWithoutBom (Join-Path $projectRoot 'lib\tilt_display.py') `

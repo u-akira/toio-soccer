@@ -1,7 +1,10 @@
 """Convert accelerometer readings into toio motor speeds."""
 
-DEADZONE_X = 1400
-DEADZONE_Y = 2240
+try:
+    from .tilt_settings import DEADZONE_X, DEADZONE_Y
+except ImportError:
+    from tilt_settings import DEADZONE_X, DEADZONE_Y
+
 BASE_SPEED = 16
 MAX_SPEED = 112
 STEERING_GAIN = 0.5

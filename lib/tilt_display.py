@@ -1,7 +1,10 @@
 """Show tilt direction and magnitude on the micro:bit LED matrix."""
 
-DEADZONE_X = 1400
-DEADZONE_Y = 2240
+try:
+    from .tilt_settings import DEADZONE_X, DEADZONE_Y
+except ImportError:
+    from tilt_settings import DEADZONE_X, DEADZONE_Y
+
 STEP_X = 6000
 STEP_Y = 6000
 

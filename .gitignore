@@ -4,7 +4,6 @@
 !/prepare_upload.ps1
 !/pyproject.toml
 !/*.md
-!/se/
 !/tests/
 !/test/
 !/test/**
