@@ -50,7 +50,7 @@ A/B旋回速度は16、A+B前進速度は112。傾き操作は`lib/tilt_drive.py
 - モードの切替と手動／デモの指令選択は`lib/mode_controller.py`に集約する。デモの動作列は同ファイルの`DEMO_SEQUENCE`で差し替える。
 - `tests/`: PC上の`unittest`。実センサー・BLE・モーターは検証せず、各モジュールの計算や制御判断を検証する。
 - `test/`: micro:bitへ単体転送する機能サンプル。
-- `upload/debug/`と`upload/release/`: `scripts/prepare_upload.ps1`が生成する転送成果物。debugは分割構成、releaseは単一の`code.py`。
+- `upload/debug/`と`upload/release/`: `scripts/project.py prepare-upload`が生成する転送成果物。debugは分割構成、releaseは単一の`code.py`。
 - 旧版ソースは参照用として作業フォルダーに置く。Jujutsuの管理対象外。
 
 ## 3. PCでのテスト
@@ -58,7 +58,7 @@ A/B旋回速度は16、A+B前進速度は112。傾き操作は`lib/tilt_drive.py
 Python 3.13とuvを使う。外部パッケージは不要。
 
 ```powershell
-.\scripts\test.ps1
+uv --cache-dir .uv-cache run --python 3.13 python scripts/project.py test
 ```
 
 このスクリプトは転送ファイルを生成し、同じテスト一式をdebug版とrelease版に対してそれぞれ実行する。
@@ -73,7 +73,7 @@ BLE接続や実機のピン・音・モーター動作は、micro:bitとtoioで�
 2. プロジェクトルートで転送ファイルを生成する。
 
    ```powershell
-   .\scripts\prepare_upload.ps1
+   uv --cache-dir .uv-cache run --python 3.13 python scripts/project.py prepare-upload
    ```
 
 `upload/debug/`と`upload/release/`が生成される。次のどちらか一方を転送する。
@@ -88,7 +88,7 @@ BLE接続や実機のピン・音・モーター動作は、micro:bitとtoioで�
 
 - `upload/release/code.py`だけをmicro:bitのルートへ転送する。
 - releaseはルートの`code.py`と`lib/*.py`から自動生成する。生成ファイルを直接編集しない。
-- `scripts/test.ps1`は同じテストをdebug版とrelease版の両方に実行し、release全体の構文も確認する。
+- `scripts/project.py test`は同じテストをdebug版とrelease版の両方に実行し、release全体の構文も確認する。WindowsとmacOSで同じコマンドを使う。
 - PCテストでは分割版と統合版のプログラムロジックを確認できる。BLE、内蔵センサー、モーター、CircuitPython固有APIの実機動作は保証されないため、release版もmicro:bitで確認する。
 
 WAV音源の転送は不要。
@@ -104,7 +104,7 @@ WAV音源の転送は不要。
 - `Ctrl+C`またはリセットボタンで実行を止め、シェルに`>>>`が戻ってから転送する。
 - 通常起動で停止できない場合は、micro:bitをセーフモードで起動し、その間に転送する。
 - debug版は`upload/debug/`内を一式で転送し、release版は`upload/release/code.py`だけを転送する。両方式のファイルを混ぜない。
-- `scripts/prepare_upload.ps1`は転送用`.py`ファイルのUTF-8 BOMを除去する。転送ファイルをエディターで再保存してBOMを付けない。
+- `scripts/project.py prepare-upload`は転送用`.py`ファイルのUTF-8 BOMを除去する。転送ファイルをエディターで再保存してBOMを付けない。
 
 ## 5. 調整
 
