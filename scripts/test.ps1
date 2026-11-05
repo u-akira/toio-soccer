@@ -1,10 +1,11 @@
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$scriptsDirectory = $PSScriptRoot
+$projectRoot = Split-Path -Parent $scriptsDirectory
 $env:UV_CACHE_DIR = Join-Path $projectRoot '.uv-cache'
 
 Push-Location $projectRoot
 try {
-    .\prepare_upload.ps1
+    & (Join-Path $scriptsDirectory 'prepare_upload.ps1')
 
     foreach ($target in @('debug', 'release')) {
         Write-Output "Running tests against $target sources..."

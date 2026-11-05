@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent $PSScriptRoot
 $uploadRoot = Join-Path $projectRoot 'upload'
 $debugRoot = Join-Path $uploadRoot 'debug'
 $debugLib = Join-Path $debugRoot 'lib'

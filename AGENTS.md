@@ -15,7 +15,7 @@
 - `code.py`は、micro:bitのルートにコピーするとCircuitPythonが自動実行するプログラム。
 - `test/`には、micro:bitへ個別にコピーして単体実行できるサンプルを置く。
 - `tests/`にはPC上で実行する自動テストを置く。ここにあるファイルはmicro:bitへコピーしない。
-- `upload/debug/`と`upload/release/`は`prepare_upload.ps1`で生成する転送成果物で、直接編集しない。debugは`code.py`と`lib/`、releaseは単一の`code.py`。
+- `upload/debug/`と`upload/release/`は`scripts/prepare_upload.ps1`で生成する転送成果物で、直接編集しない。debugは`code.py`と`lib/`、releaseは単一の`code.py`。
 - 仕様書・セットアップ手順書は、この作業ルールとは別のファイルとして管理する。
 
 ## PCでの自動テスト
@@ -25,9 +25,9 @@
 - PowerShellでの実行コマンド：
 
   ```powershell
-  .\test.ps1
+  .\scripts\test.ps1
   ```
 
-- `test.ps1`は転送用ファイルを生成してから、同じ`tests/`を分割版（debug）と単一ファイル版（release）の両方に対して実行する。変更時はこのスクリプトを実行する。
+- `scripts/test.ps1`は転送用ファイルを生成してから、同じ`tests/`を分割版（debug）と単一ファイル版（release）の両方に対して実行する。変更時はこのスクリプトを実行する。
 - `tests/`のテストは現行コードの動作を検証する。コード変更時は、対象機能のテストを追加・更新し、debug/releaseの両方で全テストを実行する。
 - PCテストではBLE接続や内蔵センサー、実際のモーター動作は確認できない。これらは実機確認として別途記録する。
